@@ -1,11 +1,13 @@
 # Jonathan Carter
 # First Game
-# 1/13/2022
+# 1/31/2022
 # All assets are from https://kenney.nl/
 
 import random
+import sqlite3
+from sqlite3 import Error
+import wasd as gl
 
-# Imports
 import pygame
 # Buttons
 from pygame.locals import (
@@ -23,6 +25,7 @@ from pygame.locals import (
 # Screen size
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 800
+highscore = 0
 
 
 class Player(pygame.sprite.Sprite):
@@ -179,6 +182,43 @@ class powerup(pygame.sprite.Sprite):
             self.kill()
 
 
+def getdbconnection():
+    conn = None
+    try:
+        conn = sqlite3.connect("GameStats.db")
+    except Error as e:
+        print(e)
+    return conn
+
+
+def savegamestats(username, highscore):
+    print(username, highscore)
+    conn = getdbconnection()
+    curr = conn.cursor()
+    updatesql = "UPDATE Stats set Highscore = ? WHERE UserID = ?"
+    record = (highscore, username)
+    print(f"this is the sql update: {updatesql}")
+    curr.execute(updatesql, record)
+    print(record)
+    conn.commit()
+    conn.close()
+
+
+user_name = gl.GameLogon()
+
+con = getdbconnection()
+curr = con.cursor()
+
+rows = curr.execute("SELECT * FROM Stats WHERE UserID = ?", (user_name,)).fetchall()
+if len(rows) == 0:
+    record = (user_name, 0)
+    sql = "INSERT INTO Stats (UserId, HighScore) values(?,?)"
+    curr.execute(sql, record)
+    con.commit()
+else:
+    for row in rows:
+        highscore = row[1]
+
 # Starts pygame and makes some variables
 pygame.init()
 black = (0, 0, 0)
@@ -206,6 +246,7 @@ plane_sprites = pygame.sprite.Group()
 weapon_sprites = pygame.sprite.Group()
 powerup_sprites = pygame.sprite.Group()
 player_sprite = pygame.sprite.Group()
+dead_sprites = pygame.sprite.Group()
 all_sprites.add(player)
 player_sprite.add(player)
 
@@ -244,6 +285,7 @@ while running:
 
         # Quits
         elif event.type == QUIT:
+            savegamestats(user_name, highscore)
             running = False
 
     # Gets the keys and updates groups
@@ -252,6 +294,7 @@ while running:
     plane_sprites.update()
     weapon_sprites.update()
     powerup_sprites.update()
+    dead_sprites.update()
 
     # Draws the screen
     screen.fill((red, green, blue))
@@ -263,12 +306,11 @@ while running:
     for entity in weapon_sprites:
         newplane = pygame.sprite.spritecollideany(entity, plane_sprites)
         if newplane is not None:
-            if newplane.isdying:
-                pass
-            else:
-                entity.kill()
-                score += 5
-                newplane.isdying = True
+            entity.kill()
+            plane_sprites.remove(newplane)
+            dead_sprites.add(newplane)
+            score += 5
+            newplane.isdying = True
 
     # Makes the powerup collisions
     for entity in powerup_sprites:
@@ -292,6 +334,10 @@ while running:
     scorevalue = myFont.render(str(score), True, black)
     screen.blit(scorelabel, (SCREEN_WIDTH - 250, 2))
     screen.blit(scorevalue, (SCREEN_WIDTH - 150, 2))
+    highscorelabel = myFont.render("Highscore:", True, black)
+    highscorevalue = myFont.render(str(highscore), True, black)
+    screen.blit(highscorelabel, (SCREEN_WIDTH - 250, 40))
+    screen.blit(highscorevalue, (SCREEN_WIDTH - 100, 40))
 
     # Displays the bullet counter
     if bulletcounter <= 5:
@@ -305,6 +351,10 @@ while running:
     screen.blit(bulletimg, (SCREEN_WIDTH - 600, 2))
     bulletdisplay = myFont.render(str(bulletcounter), True, black)
     screen.blit(bulletdisplay, (SCREEN_WIDTH - 560, 2))
+
+    if score > highscore:
+        highscore = score
+
 
     pygame.display.flip()
 
