@@ -34,6 +34,7 @@ class Player(pygame.sprite.Sprite):
     speed = 10
     level = 1
     bulletcount = 5
+    hp = 3
 
     def __init__(self):
         super(Player, self).__init__()
@@ -47,8 +48,19 @@ class Player(pygame.sprite.Sprite):
         )
 
     def update(self, pressed__keys):  # I had to make the animation for the flame myself so it's a tiny bit jank
-        playeranimation = ["./assets/ships.png", "./assets/ships1.png", "./assets/ships2.png", "./assets/ships3.png",
-                           "./assets/ships2.png", "./assets/ships1.png"]
+        if self.hp == 3:
+            playeranimation = ["./assets/ships.png", "./assets/ships1.png", "./assets/ships2.png",
+                               "./assets/ships3.png",
+                               "./assets/ships2.png", "./assets/ships1.png"]
+            normalspeed = 8
+
+        elif self.hp == 2:
+            playeranimation = ["./assets/ships12.png", "./assets/ships12(1).png", "./assets/ships12(2).png", "./assets/ships12(3).png", "./assets/ships12(2).png", "./assets/ships12(1).png"]
+            normalspeed = 10
+        else:
+            playeranimation = ["./assets/ships13.png", "./assets/ships13(1).png", "./assets/ships13(2).png", "./assets/ships13(3).png", "./assets/ships13(2).png", "./assets/ships13(1).png"]
+            normalspeed = 13
+
         if self.movecount > len(playeranimation) - 1:
             self.movecount = 0
         self.surf = pygame.image.load(playeranimation[self.movecount]).convert_alpha()
@@ -68,9 +80,9 @@ class Player(pygame.sprite.Sprite):
             self.rect.move_ip(0, self.speed)
 
         if pressed_keys[K_LCTRL]:
-            self.speed = 5
+            self.speed = normalspeed - 5
         else:
-            self.speed = 10
+            self.speed = normalspeed
 
         if self.rect.left < 0:
             self.rect.left = 0
@@ -92,6 +104,12 @@ class Player(pygame.sprite.Sprite):
 
     def addbullets(self, nbullets):
         self.bulletcount += nbullets
+
+    def playerdamage(self):
+        self.hp -= 1
+
+    def returnhp(self):
+        return self.hp
 
 
 class enemy1(pygame.sprite.Sprite):
@@ -134,7 +152,7 @@ class Projectile(pygame.sprite.Sprite):
         super(Projectile, self).__init__()
         self.surf = pygame.image.load("./assets/basicfires.png")
         self.rect = self.surf.get_rect(
-                center=(player.rect.left + 33, player.rect.bottom - 50), )
+            center=(player.rect.left + 33, player.rect.bottom - 50), )
         self.speed = 5
 
     def update(self):
@@ -191,15 +209,15 @@ def getdbconnection():
     return conn
 
 
-def savegamestats(username, highscore):
-    print(username, highscore)
+def savegamestats(username, highscoree):
+    print(username, highscoree)
     conn = getdbconnection()
-    curr = conn.cursor()
+    currr = conn.cursor()
     updatesql = "UPDATE Stats set Highscore = ? WHERE UserID = ?"
-    record = (highscore, username)
+    recordd = (highscoree, username)
     print(f"this is the sql update: {updatesql}")
-    curr.execute(updatesql, record)
-    print(record)
+    currr.execute(updatesql, recordd)
+    print(recordd)
     conn.commit()
     conn.close()
 
@@ -329,6 +347,17 @@ while running:
             bulletcounter = player.bulletcount
             entity.kill()
 
+    for entity in plane_sprites:
+        newplane = pygame.sprite.spritecollideany(entity, player_sprite)
+        if newplane is not None:
+            entity.kill()
+            newplane.isdying = True
+            player.playerdamage()
+            playerhp = player.returnhp()
+            if playerhp == 0:
+                savegamestats(user_name, highscore)
+                running = False
+
     # Displays score
     scorelabel = myFont.render("Score:", True, black)
     scorevalue = myFont.render(str(score), True, black)
@@ -354,7 +383,6 @@ while running:
 
     if score > highscore:
         highscore = score
-
 
     pygame.display.flip()
 
