@@ -124,6 +124,7 @@ class enemy1(pygame.sprite.Sprite):
                 random.randint(5, SCREEN_WIDTH - 10),
                 random.randint(1, 10),
             ))
+        self.hitbox = self.rect.inflate(0, -80)
         self.speed = random.randint(4, 10)
         self.etype = "fodder"
         self.diecount = 30
